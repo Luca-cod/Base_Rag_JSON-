@@ -1,0 +1,20 @@
+{
+  "devices": [
+    {
+      "name": "Thermostat",
+      "uuid": "da21b892-6182-4f76-b5c5-c52b80607228",
+      "category": 0,
+      "location": "(TEST) Warehouse A",
+      "parameters": [
+        {"name": "temperatura", "value": "0", "unit": "celsius", "dataType": 1, "logType": 3, "enumerationVal": []},
+        {"name": "setpoint", "value": "25", "dataType": 0, "unit": "celsius", "operation": { "type": "update" }, "logType": 1, "minVal": "11", "maxVal": "30", "enumerationVal": []},
+        {"name": "local_temperature_calibration", "value": "0", "dataType": 1, "unit": "celsius", "logType": 0, "minVal": "-2.5", "maxVal": "2.5", "enumerationVal": []},
+        {"name": "system_mode", "value": "0", "dataType": 4, "operation": { "type": "update" }, "logType": 1, "enumerationVal": ["OFF", "COOL", "HEAT"]},
+        {"name": "control_sequence_of_operation", "value": "0", "dataType": 4, "operation": { "type": "update" }, "logType": 1, "enumerationVal": ["COOLING_ONLY", "COOLING_WITH_REHEAT", "HEATING_ONLY", "HEATING_WITH_REHEAT", "COOLING_AND_HEATING", "COOLING_AND_HEATING_WITH_REHEAT"]},
+        {"name": "connettivita", "value": "false", "dataType": 2, "logType": 0, "enumerationVal": []},
+        {"name": "abbandona_rete", "value": "false", "dataType": 2, "operation": { "type": "button" }, "logType": 1, "enumerationVal": []},
+        {"name": "batteria_scarica", "value": "false", "dataType": 2, "logType": 1, "enumerationVal": []}
+      ]
+    }
+  ]
+}

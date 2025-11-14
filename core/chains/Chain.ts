@@ -4,9 +4,7 @@ import { FaissStore } from "@langchain/community/vectorstores/faiss";
 import { Ollama } from "@langchain/ollama";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { RunnableSequence, RunnablePassthrough } from "@langchain/core/runnables";
-import { EndpointMetadata } from "../retrieval/loaders/loadDocumentJSON3 copy.js";
 import { Document as LangChainDocument } from "langchain/document";
-import { ExtendsSeqMetadata } from "../retrieval/splitters/SecondSplit2.js"
 import { JsonOutputParser } from "@langchain/core/output_parsers";
 
 
@@ -21,7 +19,7 @@ export const filterByVisualizationType = {
   'VAYYAR_CARE': 'sensor'
 }
 
-
+//Funzione NON usata
 export async function createRagChain(llm: Ollama, vectorStore: FaissStore, preFilteredDocs?: LangChainDocument[]): Promise<RunnableSequence> {
 
 
@@ -121,12 +119,12 @@ If a piece of information is not explicitly present in the data, it is your resp
 But if the context is very verbose, use the data that is most relevant to you for that particular query, For example, if the query requires only one parameter, return that parameter without returning all the others.
 
 
-⚠️ USE EXCLUSIVELY THE DATA PROVIDED IN THE GIVEN CONTEXT
+ USE EXCLUSIVELY THE DATA PROVIDED IN THE GIVEN CONTEXT
 
 You may INTERPRET clearly labeled parameters (e.g., "setpoint" means target temperature) 
 but NEVER infer values not present in the data.
 
-⚠️ ALWAYS STATE WHEN INFORMATION IS NOT AVAILABLE IN THE DATA
+ ALWAYS STATE WHEN INFORMATION IS NOT AVAILABLE IN THE DATA
 AVAILABLE DEVICES CONTEXT
 
 {context}
@@ -495,41 +493,3 @@ const prompt = ChatPromptTemplate.fromTemplate(`
   return chain;
 }
 
-
-
-function formatFallbackSection(fallbacks: LangChainDocument[]): string {
-  const parts = [" ADDITIONAL INFORMATION:"];
-
-  fallbacks.forEach(doc => {
-    parts.push(`• ${doc.metadata.name || 'Information chunk'}`);
-  });
-
-  return parts.join('\n');
-}
-
-
-function getCategoryName(category: number): string {
-  const categories: Record<number, string> = {
-    0: 'Controller',
-    1: 'Gateway',
-    2: 'Bridge',
-    11: 'Actuator',
-    12: 'Smart Switch',
-    15: 'Smart Light',
-    18: 'Sensor',
-    // Aggiungi altre categorie se necessario
-  };
-  return categories[category] || `Category ${category}`;
-}
-
-function getDataTypeName(typeCode: number): string {
-  const types: Record<number, string> = {
-    0: 'number',
-    1: 'decimal',
-    2: 'boolean',
-    3: 'string',
-    4: 'enumeration',
-    5: 'integer'
-  };
-  return types[typeCode] || 'unknown';
-}

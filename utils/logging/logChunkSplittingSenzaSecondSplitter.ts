@@ -2,7 +2,6 @@
 import { ExtendDocument } from "../../config/RAGJSON.js"
 import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
 
-import { ExtendsSeqMetadata } from "src/core/retrieval/splitters/SecondSplit2.js";
 
 
 
@@ -42,34 +41,41 @@ Quality control ensures critical metadata isn't lost*/
 
 //Provare o vedere RecursiveCharacterTextSplitter per splittare in chuks i documenti, è una funz di LangChain
 
+//Versione senza SecondSplitter!
+
+
+export interface ChunkSplittingReturn {
+    documents: ExtendDocument[];
+    deviceFamilies: Map<string, any>;
+}
 export async function logChunkSplitting(
-    documents: ExtendDocument[],
+    documents: any,
     chunkSize: number,
     chunkOverlap: number,
     recursiveDepth: number
-): Promise<{
+): Promise<ChunkSplittingReturn[]> {
 
-    documents: ExtendDocument[];
-    deviceFamilies: Map<string, any>;
-}[]> {
+    if (!documents || !Array.isArray(documents)) {
+        console.log("documents non è un array, ma è ", typeof documents);
+    }
     console.log(`\n=== CHUNK PROCESSING STARTED ===`);
     console.log(`Processing ${documents.length} pre-chunked documents`);
     console.log(`Max chunk size: ${chunkSize}, overlap: ${chunkOverlap}`);
 
     const MAX_RECURSIVE_DEPTH = 5; //lIMITA LA RICORSIONE
 
-
-    // ⚠️ DEBUG DUPLICAZIONE INPUT
-    console.log("🔍 ANALISI INPUT logChunkSplitting:");
-    const inputUUIDs = documents.map(d => d.metadata.uuid);
-    const uniqueUUIDs = [...new Set(inputUUIDs)];
-    console.log(`   Documenti in input: ${documents.length}`);
-    console.log(`   UUID unici: ${uniqueUUIDs.length}`);
-
+    /*
+        //  DEBUG DUPLICAZIONE INPUT
+        console.log("🔍 ANALISI INPUT logChunkSplitting:");
+        const inputUUIDs = documents.map((d: any) => d.metadata.uuid);
+        const uniqueUUIDs = [...new Set(inputUUIDs)];
+        console.log(`   Documenti in input: ${documents.length}`);
+        console.log(`   UUID unici: ${uniqueUUIDs.length}`);
+    */
 
     // Trova duplicati
     const duplicateMap = new Map();
-    documents.forEach((doc, idx) => {
+    documents.forEach((doc: any, idx: any) => {
         const key = `${doc.metadata.uuid}-${doc.metadata.chunkType}`;
         if (!duplicateMap.has(key)) duplicateMap.set(key, []);
         duplicateMap.get(key).push({ index: idx, name: doc.metadata.name });
@@ -77,7 +83,7 @@ export async function logChunkSplitting(
 
     duplicateMap.forEach((entries, key) => {
         if (entries.length > 1) {
-            console.log(`🚨 DUPLICATI trovati per ${key}:`);
+            console.log(` DUPLICATI trovati per ${key}:`);
             entries.forEach((entry: any) => {
                 console.log(`   - Index ${entry.index}: ${entry.name}`);
             });
@@ -85,19 +91,16 @@ export async function logChunkSplitting(
     });
 
 
+    const results: { documents: ExtendDocument[]; deviceFamilies: Map<string, any>; }[] | PromiseLike<{ documents: ExtendDocument[]; deviceFamilies: Map<string, any>; }[]> = [];
 
-
-
-
-    const results = [];
     const globalDeviceFamilies = new Map<string, any>();
 
+    
     const splitter = new RecursiveCharacterTextSplitter({
         chunkSize,
         chunkOverlap,
         keepSeparator: true
     });
-
 
     // Statistics tracking
     let totalOriginalChunks = 0;
@@ -105,9 +108,6 @@ export async function logChunkSplitting(
     let chunksRequiringSplitting = 0;
     let chunksRequiringSecondSplit = 0;
     const chunkTypeStats: Record<string, number> = {};
-
-
-
 
 
     for (const [index, doc] of documents.entries()) {
@@ -130,9 +130,12 @@ export async function logChunkSplitting(
         console.log("Curiosità", finalChunks.length);
         //console.log("Curiosità", JSON.stringify(finalChunks));
 
-        // Check if this chunk needs secondary splitting
+
+        //  ==============================================================================================================
+        //                                     Check if this chunk needs secondary splitting
+        //  ==============================================================================================================
         if (doc.pageContent.length > chunkSize) {
-            console.log(`⚠️ Chunk oversized (${doc.pageContent.length} > ${chunkSize}), applying secondary splitting...`);
+            console.log(` Chunk oversized (${doc.pageContent.length} > ${chunkSize}), applying secondary splitting...`);
             chunksRequiringSplitting++;
 
             // Prima suddivisione standard
@@ -157,6 +160,17 @@ export async function logChunkSplitting(
                                 ...subChunk.metadata,
                                 isSubChunk: true,
                                 parentChunkId: doc.metadata.chunkId,
+
+
+
+
+                                source: "",
+                                loc: "",
+                                type: "installation-config",
+                                isValid: false,
+                                timestamp: "",
+                                chunkType: "summary",
+                                deviceType: ""
                             }
                         }], chunkSize, chunkOverlap, recursiveDepth + 1);
                         //Recupera i documenti dal risultato
@@ -166,7 +180,7 @@ export async function logChunkSplitting(
                     }
 
                 } else {
-                    recursiveChunk.push(subChunk);
+                    recursiveChunk.push(subChunk as ExtendDocument);
                 }
 
             }
@@ -204,60 +218,6 @@ export async function logChunkSplitting(
 
         totalFinalChunks += finalChunks.length;
 
-        const deviceFamilies = new Map<string, any>();
-
-        finalChunks.forEach(doc => {
-            if (doc.metadata.chunkType === 'detail') {
-                const deviceKey = doc.metadata.parentUuid || doc.metadata.uuid;
-                const deviceName = doc.metadata.parentName || doc.metadata.name;
-
-                // DEBUG: Verifica il sistema gerarchico
-                if (doc.metadata.chunkId && doc.metadata.parentChunkId) {
-                    console.log(`   • Hierarchy: ${doc.metadata.chunkId} → Parent ${doc.metadata.parentChunkId}`);
-                }
-
-                if (!deviceFamilies.has(deviceKey)) {
-                    deviceFamilies.set(deviceKey, []);
-                    globalDeviceFamilies.set(deviceKey, []);
-                }
-                deviceFamilies.get(deviceKey)!.push(doc);
-                globalDeviceFamilies.get(deviceKey)!.push(doc);
-            }
-            // Aggiungi nel loop di processing
-            console.log(`   • Parent device: ${doc.metadata.parentName || 'None'} (${doc.metadata.parentUuid || 'No UUID'})`);
-
-
-        });
-
-        // Log chunk analysis
-        console.log(` Chunk ${index + 1} analysis:`);
-        console.log(`   • Original size: ${doc.pageContent.length} chars`);
-        console.log(`   • Chunk type: ${chunkType}`);
-        console.log(`   • Final chunks: ${finalChunks.length}`);
-        console.log(`   • Area info: ${doc.metadata.hasAreaInfo ? 'Yes' : 'No'}`);
-        console.log(`   • Location filters: first=${doc.metadata.isFirstFloor}, second=${doc.metadata.isSecondFloor}`);
-        console.log(`   • Location preserved: ${finalChunks.every(c =>
-            c.metadata.floorLocation === doc.metadata.floorLocation &&
-            c.metadata.isFirstFloor === doc.metadata.isFirstFloor &&
-            c.metadata.isSecondFloor === doc.metadata.isSecondFloor
-        ) ? '✅ Yes' : '❌ No'}`);
-
-        results.push({
-
-            documents: finalChunks,
-            deviceFamilies: deviceFamilies
-        });
-        /*
-        if (doc.metadata.chunkType === 'area') {
-            console.log(`   • Area name: ${doc.metadata.areaNames || 'Unknown'}`);
-            //console.log(`   • Devices count: ${doc.metadata.devicesCount || 0}`);
-        }
- 
-        results.push({
-            original: doc,
-            chunks: finalChunks,
-            deviceFamilies: deviceFamilies
-        })*/
     }
 
     // Final statistics
@@ -268,46 +228,12 @@ export async function logChunkSplitting(
     console.log(`   • Total final chunks: ${totalFinalChunks}`);
     console.log(`   • Chunks requiring splitting: ${chunksRequiringSplitting}`);
     console.log(`   • Chunk types distribution:`);
+    console.log(" Struttura chunks creati,", JSON.stringify(totalFinalChunks));
 
     Object.entries(chunkTypeStats).forEach(([type, count]) => {
         console.log(`     - ${type}: ${count}`);
     });
 
-    console.log(`\n=== DEVICE FAMILIES SUMMARY ===`);
-    console.log(`Total device families: ${globalDeviceFamilies.size}`);
-
-    for (const [deviceKey, chunks] of globalDeviceFamilies.entries()) {
-        const mainDevice = chunks.find((c: any) => !c.metadata.isSubChunk) || chunks[0];
-        const parameters = chunks.filter((c: any) => c.metadata.isSubChunk);
-        // const floorLocation = mainDevice.metadata.floorLocation || 'unknown';
-
-        //console.log(`  ${mainDevice.metadata.name} (${floorLocation}): ${chunks.length} total chunks, \nall parameters: ${parameters}`);
-    }
-
-
 
     return results;
 }
-
-function validateParentChildRelations(document: ExtendDocument[]): void {
-    const parentChunks = document.filter(c => !c.metadata.isSubChunk);
-    const childChunks = document.filter(c => c.metadata.isSubChunk);
-
-    console.log(`Parent chunks: ${parentChunks.length}`);
-    console.log(`Child chunks: ${childChunks.length}`);
-
-    /*childChunks.forEach(child => {
-        if (!child.metadata.parentUuid) {
-            console.warn(`❌ Child chunk without parent: ${child.metadata.name}`);
-        }
-    });*/
-    childChunks.forEach(child => {
-        const parent = parentChunks.find(p => p.metadata.chunkId === child.metadata.parentChunkId);
-        if (!parent) {
-            console.warn(`❌ Orphaned child: ${child.metadata.name} (${child.metadata.chunkId})`);
-        } else {
-            console.log(`✅ Valid parent-child: ${child.metadata.name} → ${parent.metadata.name}`);
-        }
-    });
-}
-
